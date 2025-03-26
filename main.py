@@ -6,10 +6,11 @@ from dotenv import load_dotenv
 from asyncio import sleep
 from asyncio import create_task
 from tft_data_retriever import get_recent_tft_data
-from tft_data_retriever import get_requested_tft_data
+from tft_data_retriever import get_patch_note_data
 from tft_data_retriever import HTMLDataTuple
 from tft_data_retriever import get_recent_patch
 from guild_db_handler import GuildDataHandler
+from guild_db_handler import GuildNotFoundError
 
 TFT_PATCH_NOTES_REGEX = re.compile(
     r"^https:\/\/teamfighttactics\.leagueoflegends\.com\/[a-z-]+\/news\/game-updates\/teamfight-tactics-patch-\d{2}-\d{1,2}-notes\/?$"
@@ -38,7 +39,11 @@ class MyClient(discord.Client):
     async def guild_enable_tft_check(self,message):
         if message.guild:
             guild_id = message.guild.id
-            guild_perm = self.guild_db.check_guild(guild_id)
+            try:
+                guild_perm = self.guild_db.check_guild(guild_id)
+            except GuildNotFoundError:
+                self.guild_db.add_guild(guild_id)
+                guild_perm = self.guild_db.check_guild(guild_id)
             if guild_perm is True:
                 await message.channel.send('You already have permissions enabled!')
             else:
@@ -67,7 +72,7 @@ class MyClient(discord.Client):
         curr_field_title = ""
         curr_field_value = ""
         msg_len = 0
-        i=0
+        i = 0
         while i < len(patch_data_list):
             if msg_len < 4500 and len(embed_list) < 9:
                 if current_embed_len < 3000:
@@ -101,7 +106,6 @@ class MyClient(discord.Client):
                         current_embed.set_image(url=patch_data_list[i].content)
                         msg_len += len(patch_data_list[i].content)
                         current_embed_len += len(patch_data_list[i].content)
-    
                         embed_list.append(current_embed)
                         current_embed = discord.Embed()
                         current_embed.set_author(name=embed_patch_title, icon_url=self.embed_icon)
@@ -110,7 +114,7 @@ class MyClient(discord.Client):
                         current_embed_len += len(patch_data_list[i].content)
     
                     elif patch_data_list[i].type in {"blockquote", "divider", "p", "li"}:
-                        if len(curr_field_title) == 0 and len(current_embed.fields) ==0:
+                        if len(curr_field_title) == 0 and len(current_embed.fields) == 0:
                             msg_len += len(patch_data_list[i].content)
                             current_embed_len += len(patch_data_list[i].content)
                             current_embed.description += patch_data_list[i].content
@@ -121,8 +125,11 @@ class MyClient(discord.Client):
                                 curr_field_value += patch_data_list[i].content
                             else:
                                 if len(curr_field_value) > 1000:
-                                    current_embed.add_field(name=curr_field_title, value=curr_field_value[0:850], inline=False)
-                                    current_embed.add_field(name="", value=curr_field_value[850:], inline=False)
+                                    while len(curr_field_value) > 1000:
+                                        current_embed.add_field(name=curr_field_title, value=curr_field_value[0:850], inline=False)
+                                        curr_field_value = curr_field_value[850:]
+                                        #current_embed.add_field(name="", value=curr_field_value[850:], inline=False)
+                                    current_embed.add_field(name=curr_field_title, value=curr_field_value, inline=False)
                                     msg_len += len(patch_data_list[i].content)
                                     current_embed_len += len(patch_data_list[i].content)
                                     curr_field_title = ""
@@ -147,7 +154,7 @@ class MyClient(discord.Client):
                 await channel.send(embeds=embed_list)
                 embed_list = []
                 msg_len = 0
-                current_embed_len = 0
+                #current_embed_len = 0
         if len(embed_list) > 0:
             await channel.send(embeds=embed_list)
         if current_embed is not None:
@@ -155,12 +162,12 @@ class MyClient(discord.Client):
 
     async def on_message(self, message):
         if message.content == self.commands[0]:
-            patch_data = get_recent_tft_data()
+            patch_data = await get_recent_tft_data()
             await self.send_tft_data(patch_data,message.channel)
         elif message.content.startswith(self.commands[1]): 
             tft_link = await self.check_tft_link(message.content)
             if len(tft_link) != 0:
-                patch_data = get_requested_tft_data(tft_link)
+                patch_data = await get_patch_note_data(tft_link)
                 if len(patch_data) > 0:
                     total_patch_data = [HTMLDataTuple(type="patch-title", content=f'Teamfight Tactics patch {message.content[5:]} notes')]
                     total_patch_data.extend(patch_data)
@@ -182,16 +189,16 @@ class MyClient(discord.Client):
             await self.guild_disable_tft_check(message)
     
     async def start_tft_check(self):
-        current_patch = get_recent_patch()
+        current_patch = await get_recent_patch()
         while True:
-            new_patch = get_recent_patch()
+            new_patch = await get_recent_patch()
             if new_patch != current_patch:
                 current_patch = new_patch
                 await self.message_tft_servers()
             await sleep(random.uniform(700,900))
 
     async def message_tft_servers(self):
-        patch_data = get_recent_tft_data()
+        patch_data = await get_recent_tft_data()
         approved_guilds = self.guild_db.get_approved_guilds()
         for guild in self.guilds:
             if guild.id in approved_guilds:
