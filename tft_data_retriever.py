@@ -1,5 +1,4 @@
 from typing import List
-import requests
 from aiohttp import ClientSession
 from bs4 import BeautifulSoup
 from collections import namedtuple

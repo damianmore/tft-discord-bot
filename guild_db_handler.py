@@ -1,4 +1,5 @@
 import sqlite3 
+
 class GuildNotFoundError(Exception):
     pass
 
@@ -23,9 +24,6 @@ class GuildDataHandler():
     def update_guild(self,guild_id, permission):
         self.guild_cursor.execute("UPDATE guilds SET permission = ? WHERE guild_id = ?", (permission, guild_id))
         self.guild_conn.commit()
-
-            
-
 
     def remove_guild(self,guild_id):
         self.guild_cursor.execute("DELETE FROM guilds WHERE guild_id = ?", (guild_id,))

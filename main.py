@@ -19,7 +19,7 @@ TFT_PATCH_YEAR_NOTES_REGEX = re.compile(
     r"^https:\/\/teamfighttactics\.leagueoflegends\.com\/[a-z-]+\/news\/game-updates\/teamfight-tactics-patch-\d{2}-\d{1,2}-notes-\d{4}\/?$"
 )
 
-class MyClient(discord.Client):  
+class TFTBotClient(discord.Client):  
     def __init__(self, intents: discord.Intents):
         super().__init__(intents=intents)
         self.commands = ['&tftrecent', '&tft','&commands','&starttftcheck','&stoptftcheck']
@@ -233,7 +233,7 @@ if __name__ == '__main__':
         intents.guilds = True
         intents.messages = True
         intents.voice_states = True
-        client = MyClient(intents=intents)
+        client = TFTBotClient(intents=intents)
         load_dotenv()
         tkn = os.getenv('DISCORDBOTTOKEN')
         client.run(tkn)
