@@ -8,7 +8,7 @@ from asyncio import create_task
 from tft_data_retriever import get_recent_tft_data
 from tft_data_retriever import get_patch_note_data
 from tft_data_retriever import HTMLDataTuple
-from tft_data_retriever import get_recent_patch
+from tft_data_retriever import get_recent_patch_title
 from guild_db_handler import GuildDataHandler
 from guild_db_handler import GuildNotFoundError
 
@@ -163,6 +163,7 @@ class TFTBotClient(discord.Client):
     async def on_message(self, message):
         if message.content == self.commands[0]:
             patch_data = await get_recent_tft_data()
+
             await self.send_tft_data(patch_data,message.channel)
         elif message.content.startswith(self.commands[1]): 
             tft_link = await self.check_tft_link(message.content)
@@ -189,9 +190,9 @@ class TFTBotClient(discord.Client):
             await self.guild_disable_tft_check(message)
     
     async def start_tft_check(self):
-        current_patch = await get_recent_patch()
+        current_patch = await get_recent_patch_title()
         while True:
-            new_patch = await get_recent_patch()
+            new_patch = await get_recent_patch_title()
             if new_patch != current_patch:
                 current_patch = new_patch
                 await self.message_tft_servers()
@@ -236,4 +237,4 @@ if __name__ == '__main__':
         client = TFTBotClient(intents=intents)
         load_dotenv()
         tkn = os.getenv('DISCORDBOTTOKEN')
-        client.run(tkn)
+        client.run(token=tkn)
